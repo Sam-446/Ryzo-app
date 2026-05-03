@@ -34,8 +34,8 @@ export const dashboard = {
     ctaText: "Download OKX",
   },
   coachCard: {
-    title: "Coach Glow",
-    ctaText: "Ask Coach Glow",
+    title: "Coach Ryzo",
+    ctaText: "Ask Coach Ryzo",
   },
   macrosSummary: {
     protein: { current: 0, target: 210, unit: "g" },

@@ -1,15 +1,14 @@
-export interface Profile {
-  gender?: string;
-  age?: number;
-  current_weight?: number;
-  weight_unit?: string;
-  height?: number;
-  height_unit?: string;
-  activity_level?: string;
-  primary_goal?: string;
+export interface TDEEInputs {
+  weightKg: number;
+  heightCm: number;
+  age: number;
+  gender: 'male' | 'female';
+  activityLevel: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'super_active';
+  goal: 'muscle_gain' | 'fat_loss' | 'maintain';
+  weeklyPace?: number;
 }
 
-export interface NutritionTargets {
+export interface TDEEResult {
   bmr: number;
   tdee: number;
   targetCalories: number;
@@ -18,60 +17,55 @@ export interface NutritionTargets {
   fat: number;
 }
 
-export function calculateTDEE(profile: Profile): NutritionTargets {
-  const gender = profile.gender || "male";
-  const age = profile.age || 25;
+export function calculateTDEE(inputs: TDEEInputs): TDEEResult {
+  const { weightKg, heightCm, age, gender, activityLevel, goal, weeklyPace } = inputs;
 
-  let weightKg = profile.current_weight || 70;
-  if (profile.weight_unit === "lb") weightKg = weightKg * 0.453592;
-
-  let heightCm = profile.height || 170;
-  if (profile.height_unit === "ft-in" || profile.height_unit === "ft") {
-    heightCm = heightCm * 30.48;
-  }
-
+  // Step 1 — BMR Mifflin-St Jeor
   let bmr: number;
-  if (gender === "female") {
-    bmr = 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
-  } else {
+  if (gender === 'male') {
     bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + 5;
+  } else {
+    bmr = 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
   }
 
-  const activityMultipliers: Record<string, number> = {
+  // Step 2 — Activity multiplier (corrected for Pakistani beginner reality)
+  const multipliers = {
     sedentary: 1.2,
-    lightly: 1.375,
     lightly_active: 1.375,
-    moderately: 1.55,
     moderately_active: 1.55,
-    very_active: 1.725,
-    super: 1.9,
-    super_active: 1.9,
+    very_active: 1.55,      // shifted down — gym beginner is not scientifically very active
+    super_active: 1.725,    // shifted down — reserved for serious athletes
   };
 
-  const multiplier = activityMultipliers[profile.activity_level || "sedentary"] || 1.2;
-  const tdee = Math.round(bmr * multiplier);
+  const tdee = Math.round(bmr * multipliers[activityLevel]);
 
-  const goalKey = normalizeGoal(profile.primary_goal);
+  // Step 3 — Target calories by goal
+  let targetCalories: number;
 
-  const goalAdjustments: Record<string, number> = {
-    fat_loss: -500,
-    muscle_gain: 300,
-    maintain: 0,
-  };
+  if (goal === 'muscle_gain') {
+    // No surplus — TDEE only. Beginners gain muscle at TDEE.
+    targetCalories = tdee;
 
-  const targetCalories = Math.round(tdee + (goalAdjustments[goalKey] || 0));
+  } else if (goal === 'fat_loss') {
+    // Dynamic deficit based on weekly pace
+    const pace = weeklyPace ?? 0.5;
+    const deficit = Math.round(pace * 1100);
+    const calculated = tdee - deficit;
 
-  const macroSplits: Record<string, { protein: number; carbs: number; fat: number }> = {
-    fat_loss: { protein: 0.40, carbs: 0.30, fat: 0.30 },
-    muscle_gain: { protein: 0.30, carbs: 0.45, fat: 0.25 },
-    maintain: { protein: 0.35, carbs: 0.40, fat: 0.25 },
-  };
+    // Hard floor — never go below this
+    const floor = gender === 'male' ? 1500 : 1200;
+    targetCalories = Math.max(calculated, floor);
 
-  const split = macroSplits[goalKey] || macroSplits.maintain;
+  } else {
+    // Maintain — straight TDEE
+    targetCalories = tdee;
+  }
 
-  const protein = Math.round((targetCalories * split.protein) / 4);
-  const carbs = Math.round((targetCalories * split.carbs) / 4);
-  const fat = Math.round((targetCalories * split.fat) / 9);
+  // Step 4 — Macros
+  const protein = Math.round(weightKg * (goal === 'fat_loss' ? 2.0 : goal === 'muscle_gain' ? 1.8 : 1.6));
+  const fat = Math.round((targetCalories * 0.25) / 9);
+  const remainingCalories = targetCalories - (protein * 4) - (fat * 9);
+  const carbs = Math.round(remainingCalories / 4);
 
   return {
     bmr: Math.round(bmr),
@@ -83,9 +77,9 @@ export function calculateTDEE(profile: Profile): NutritionTargets {
   };
 }
 
-export function normalizeGoal(goal?: string): string {
-  if (!goal) return "maintain";
-  if (goal === "lose-fat" || goal === "fat_loss") return "fat_loss";
-  if (goal === "gain-muscle" || goal === "muscle_gain") return "muscle_gain";
-  return "maintain";
+export function normalizeGoal(goal: string): 'muscle_gain' | 'fat_loss' | 'maintain' {
+  if (goal === 'muscle_gain' || goal === 'fat_loss' || goal === 'maintain') {
+    return goal;
+  }
+  return 'maintain';
 }

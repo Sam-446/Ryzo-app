@@ -28,13 +28,12 @@ export default function Screen10() {
           </div>
           <p className="text-center text-green-500 font-semibold text-sm">100%</p>
         </div>
-        {/* "Plan Complete!" with push-up Goku inline — horizontal pose needs wider width */}
         <div className="flex items-center gap-3">
           <span className="font-bold text-gray-900 text-lg">Plan Complete!</span>
           <img
             src="/assets/goku5.png"
             alt="Goku"
-            style={{ width: 140, height: "auto", objectFit: "contain" }}
+            style={{ width: 150, height: "auto", objectFit: "contain" }}
           />
         </div>
         <button

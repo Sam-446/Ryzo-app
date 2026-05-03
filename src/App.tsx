@@ -10,7 +10,6 @@ import Screen05 from "./pages/Screen05";
 import Screen06 from "./pages/Screen06";
 import Screen07 from "./pages/Screen07";
 import Screen08 from "./pages/Screen08";
-import Screen09 from "./pages/Screen09";
 import Screen10 from "./pages/Screen10";
 import Screen11 from "./pages/Screen11";
 import Screen12 from "./pages/Screen12";
@@ -21,10 +20,26 @@ import Screen24 from "./pages/Screen24";
 import LoginScreen from "./pages/LoginScreen";
 import SignupScreen from "./pages/SignupScreen";
 import NotFound from "./pages/not-found";
+import ScreenBodyStats from "./pages/ScreenBodyStats";
+import ScreenWeeklyPace from "./pages/ScreenWeeklyPace";
+import ScreenFoodScanner from "./pages/ScreenFoodScanner";
+import ScreenBarcodeScanner from "./pages/ScreenBarcodeScanner";
+import ScreenSteps from "./pages/ScreenSteps";
+import ScreenCoachGlow from "./pages/ScreenCoachGlow";
 
 const queryClient = new QueryClient();
 
-const PROTECTED_PATHS = ["/dashboard", "/dashboard-scroll", "/plan", "/progress", "/profile"];
+const PROTECTED_PATHS = [
+  "/dashboard",
+  "/dashboard-scroll",
+  "/plan",
+  "/progress",
+  "/profile",
+  "/scan-food",
+  "/scan-barcode",
+  "/steps",
+  "/coach-glow",
+];
 
 function Router() {
   const { isAuthenticated, loading } = useAuth();
@@ -42,7 +57,12 @@ function Router() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-teal-200 via-green-100 to-purple-200 flex items-center justify-center">
         <div className="bg-white rounded-3xl p-8 text-center shadow-lg">
-          <img src="/assets/goku_main.png" alt="Goku" className="mx-auto mb-4" style={{ width: 80 }} />
+          <img
+            src="/assets/goku_main.png"
+            alt="Goku"
+            className="mx-auto mb-4"
+            style={{ width: 80 }}
+          />
           <p className="text-gray-500 text-sm">Loading…</p>
         </div>
       </div>
@@ -60,13 +80,14 @@ function Router() {
 
       <Route path="/" component={Screen01} />
       <Route path="/goal" component={Screen02} />
-      <Route path="/body-stats" component={Screen03} />
+      <Route path="/gender-age" component={Screen03} />
+      <Route path="/body-stats" component={ScreenBodyStats} />
       <Route path="/goal-weight" component={Screen04} />
       <Route path="/activity" component={Screen05} />
+      <Route path="/weekly-pace" component={ScreenWeeklyPace} />
       <Route path="/meal-routine" component={Screen06} />
-      <Route path="/barriers" component={Screen07} />
       <Route path="/workout-time" component={Screen08} />
-      <Route path="/motivation" component={Screen09} />
+      <Route path="/barriers" component={Screen07} />
       <Route path="/plan-ready" component={Screen10} />
       <Route path="/congrats" component={Screen11} />
 
@@ -76,6 +97,11 @@ function Router() {
       <Route path="/progress" component={Screen21} />
       <Route path="/profile" component={Screen24} />
 
+      <Route path="/scan-food" component={ScreenFoodScanner} />
+      <Route path="/scan-barcode" component={ScreenBarcodeScanner} />
+      <Route path="/steps" component={ScreenSteps} />
+      <Route path="/coach-glow" component={ScreenCoachGlow} />
+
       <Route component={NotFound} />
     </Switch>
   );
@@ -84,7 +110,7 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+      <WouterRouter base="/">
         <AuthProvider>
           <Router />
         </AuthProvider>

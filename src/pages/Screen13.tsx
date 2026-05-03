@@ -80,16 +80,16 @@ export default function Screen13() {
 
         <div className="mx-4 mb-4 rounded-2xl p-4" style={{ background: "#f5e6d3" }}>
           <div className="flex items-center gap-3 mb-3">
-            {/* goku1 (thumbs up) in Coach Glow section */}
+            {/* goku1 (thumbs up) in Coach Ryzo section */}
             <img
               src="/assets/goku1.png"
               alt="Goku"
               style={{ width: 84, height: "auto", objectFit: "contain", flexShrink: 0 }}
             />
-            <span className="font-bold text-gray-900 text-base">Coach Glow</span>
+            <span className="font-bold text-gray-900 text-base">Coach Ryzo</span>
           </div>
           <button className="w-full bg-orange-400 hover:bg-orange-500 text-white font-bold py-3 rounded-full text-sm transition-colors">
-            Ask Coach Glow
+            Ask Coach Ryzo
           </button>
         </div>
 

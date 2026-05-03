@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
 
 const times = [
@@ -9,49 +8,35 @@ const times = [
 ];
 
 export default function Screen08() {
-  const [selected, setSelected] = useState<string | null>(null);
   const [, navigate] = useLocation();
 
-  const handleContinue = () => {
-    if (selected) {
-      localStorage.setItem("onboarding_preferred_workout_time", selected);
-      navigate("/motivation");
-    }
-  };
+const handleSelect = (id: string) => {
+  localStorage.setItem("onboarding_preferred_workout_time", id);
+  setTimeout(() => navigate("/barriers"), 180);
+};
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-100 to-teal-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-lg relative" style={{ paddingBottom: 96 }}>
-        <h1 className="text-2xl font-extrabold text-gray-900 text-center mb-6">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4 pt-8"
+      style={{ background: "linear-gradient(180deg, #a8eddc 0%, #e8f5e0 50%, #f0f0ff 100%)" }}
+    >
+      <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-lg">
+        <h1 className="text-2xl font-extrabold text-gray-900 mb-6 text-center">
           When do you prefer to work out?
         </h1>
-        <div className="grid grid-cols-2 gap-3 mb-8">
+
+        <div className="grid grid-cols-2 gap-3">
           {times.map((t) => (
             <button
               key={t.id}
-              onClick={() => setSelected(t.id)}
-              className={`flex flex-col items-center justify-center gap-3 p-6 rounded-2xl transition-all ${t.bg} ${selected === t.id ? "ring-2 ring-gray-400" : ""}`}
+              onClick={() => handleSelect(t.id)}
+              className={`flex flex-col items-center justify-center gap-3 p-6 rounded-2xl transition-all active:scale-95 ${t.bg}`}
             >
               <span className="text-2xl">{t.icon}</span>
               <span className="font-bold text-gray-900 text-sm">{t.label}</span>
             </button>
           ))}
         </div>
-        <button
-          onClick={handleContinue}
-          className={`w-full py-4 rounded-full font-semibold text-base transition-colors ${selected ? "bg-green-400 hover:bg-green-500 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
-        >
-          Continue
-        </button>
-        {!selected && (
-          <p className="text-center text-sm text-gray-400 mt-2">Please select one option</p>
-        )}
-        {/* Goku5 is a horizontal push-up pose — use wider dimensions */}
-        <img
-          src="/assets/goku5.png"
-          alt="Goku"
-          style={{ position: "absolute", bottom: 8, right: 0, width: 96, height: "auto", objectFit: "contain" }}
-        />
       </div>
     </div>
   );
