@@ -7,4 +7,12 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error("Missing Supabase environment variables. Check your .env file.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    storageKey: "ryzo-auth",
+    storage: window.localStorage,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
