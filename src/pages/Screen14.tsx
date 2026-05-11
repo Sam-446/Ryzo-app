@@ -107,6 +107,20 @@ interface MealDay {
   meals: MealItem[];
 }
 
+// ── Save a single set to Supabase ──
+async function saveSetToDb(userId: string, exerciseId: string, setIndex: number, kg: number, reps: number, done: boolean) {
+  const todayDate = new Date().toISOString().split("T")[0];
+  await supabase.from("workout_logs").upsert({
+    user_id: userId,
+    exercise_id: exerciseId,
+    date: todayDate,
+    set_index: setIndex,
+    kg,
+    reps,
+    done,
+  }, { onConflict: "user_id,exercise_id,date,set_index" });
+}
+
 // ── Exercise Card ──
 function ExerciseCard({
   exercise, onToggleVideo, onToggleDone, onChangeKg, onChangeReps, onAddSet, onRemoveSet,
@@ -123,9 +137,12 @@ function ExerciseCard({
 
   return (
     <div className="bg-white rounded-2xl p-4 mb-3 shadow-sm">
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-1">
         <p className="text-purple-600 font-bold text-sm flex-1 pr-2">{exercise.exercise_name}</p>
       </div>
+
+      {/* Hint for editing weight */}
+      <p className="text-gray-400 text-xs mb-3">✏️ Tap KG or REPS to type your own value</p>
 
       <button
         onClick={onToggleVideo}
@@ -181,13 +198,15 @@ function ExerciseCard({
           <span className="text-center text-gray-400 text-xs">{exercise.target_reps}</span>
           <input
             type="number"
-            value={s.kg}
+            value={s.kg === 0 ? "" : s.kg}
+            placeholder="2.5"
             onChange={(e) => onChangeKg(si, parseFloat(e.target.value) || 0)}
             className="bg-gray-100 rounded-lg py-1.5 text-center text-gray-700 text-sm font-medium w-full border-none outline-none"
           />
           <input
             type="number"
-            value={s.reps}
+            value={s.reps === 0 ? "" : s.reps}
+            placeholder="10"
             onChange={(e) => onChangeReps(si, parseInt(e.target.value) || 1)}
             className="bg-gray-100 rounded-lg py-1.5 text-center text-gray-700 text-sm font-medium w-full border-none outline-none"
           />
@@ -336,6 +355,7 @@ export default function Screen14() {
   const [userName, setUserName] = useState("");
   const [restDay, setRestDay] = useState<"sunday" | "friday">("sunday");
   const [userGoal, setUserGoal] = useState("maintain");
+  const [userId, setUserId] = useState<string | null>(null);
   const [, navigate] = useLocation();
 
   useEffect(() => {
@@ -351,6 +371,7 @@ export default function Screen14() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setUserId(user.id);
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -406,7 +427,7 @@ export default function Screen14() {
                     (l) => l.exercise_id === ex.id && l.set_index === si
                   );
                   return {
-                    kg: log?.kg ?? ex.target_kg ?? 0,
+                    kg: log?.kg ?? 2.5,
                     reps: log?.reps ?? parseInt(ex.target_reps?.split("-")[0] || "10"),
                     done: log?.done ?? false,
                   };
@@ -501,39 +522,29 @@ export default function Screen14() {
   const currentWorkoutDay = workoutDays.find((d) => d.day_name === DAYS_FULL[selectedDayIndex]);
   const currentMealDay = mealDays.find((d) => d.day_name === DAYS_FULL[selectedDayIndex]);
 
-  async function updateExercise(
+  // ── Directly compute updated set and save to DB without relying on stale state ──
+  function updateExerciseAndSave(
     exIdx: number,
     updater: (ex: ExerciseRow) => ExerciseRow,
     saveSetIndex?: number
   ) {
-    let updatedEx: ExerciseRow | null = null;
-
-    setWorkoutDays((prev) =>
-      prev.map((day) => {
+    setWorkoutDays((prev) => {
+      const next = prev.map((day) => {
         if (day.day_name !== DAYS_FULL[selectedDayIndex]) return day;
         const exs = [...day.exercises];
         exs[exIdx] = updater({ ...exs[exIdx], sets: [...exs[exIdx].sets] });
-        updatedEx = exs[exIdx];
-        return { ...day, exercises: exs };
-      })
-    );
 
-    if (saveSetIndex !== undefined && updatedEx) {
-      const ex = updatedEx as ExerciseRow;
-      const s = ex.sets[saveSetIndex];
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const todayDate = new Date().toISOString().split("T")[0];
-      await supabase.from("workout_logs").upsert({
-        user_id: user.id,
-        exercise_id: ex.id,
-        date: todayDate,
-        set_index: saveSetIndex,
-        kg: s.kg,
-        reps: s.reps,
-        done: s.done,
-      }, { onConflict: "user_id,exercise_id,date,set_index" });
-    }
+        // Save to DB inside the updater so we have the fresh value
+        if (saveSetIndex !== undefined && userId) {
+          const ex = exs[exIdx];
+          const s = ex.sets[saveSetIndex];
+          saveSetToDb(userId, ex.id, saveSetIndex, s.kg, s.reps, s.done);
+        }
+
+        return { ...day, exercises: exs };
+      });
+      return next;
+    });
   }
 
   async function toggleMealComplete(mealId: string, currentlyDone: boolean) {
@@ -730,24 +741,24 @@ export default function Screen14() {
                       <ExerciseCard
                         key={ex.id}
                         exercise={ex}
-                        onToggleVideo={() => updateExercise(exIdx, (e) => ({ ...e, showVideo: !e.showVideo }))}
-                        onToggleDone={(si) => updateExercise(exIdx, (e) => ({
+                        onToggleVideo={() => updateExerciseAndSave(exIdx, (e) => ({ ...e, showVideo: !e.showVideo }))}
+                        onToggleDone={(si) => updateExerciseAndSave(exIdx, (e) => ({
                           ...e,
                           sets: e.sets.map((s, i) => i === si ? { ...s, done: !s.done } : s),
                         }), si)}
-                        onChangeKg={(si, v) => updateExercise(exIdx, (e) => ({
+                        onChangeKg={(si, v) => updateExerciseAndSave(exIdx, (e) => ({
                           ...e,
                           sets: e.sets.map((s, i) => i === si ? { ...s, kg: Math.max(0, v) } : s),
                         }), si)}
-                        onChangeReps={(si, v) => updateExercise(exIdx, (e) => ({
+                        onChangeReps={(si, v) => updateExerciseAndSave(exIdx, (e) => ({
                           ...e,
                           sets: e.sets.map((s, i) => i === si ? { ...s, reps: Math.max(1, v) } : s),
                         }), si)}
-                        onAddSet={() => updateExercise(exIdx, (e) => ({
+                        onAddSet={() => updateExerciseAndSave(exIdx, (e) => ({
                           ...e,
-                          sets: [...e.sets, { kg: 0, reps: parseInt(e.target_reps?.split("-")[0] || "10"), done: false }],
+                          sets: [...e.sets, { kg: 2.5, reps: parseInt(e.target_reps?.split("-")[0] || "10"), done: false }],
                         }))}
-                        onRemoveSet={() => updateExercise(exIdx, (e) => ({
+                        onRemoveSet={() => updateExerciseAndSave(exIdx, (e) => ({
                           ...e,
                           sets: e.sets.length > 1 ? e.sets.slice(0, -1) : e.sets,
                         }))}
