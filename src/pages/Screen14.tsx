@@ -51,10 +51,10 @@ const exerciseGifs: Record<string, string> = {
 
 function getMealOrder(workoutTime: string | null): string[] {
   switch (workoutTime) {
-    case "morning":  return ["pre_workout", "breakfast", "lunch", "snack", "dinner"];
+    case "morning":   return ["pre_workout", "breakfast", "lunch", "snack", "dinner"];
     case "afternoon": return ["breakfast", "lunch", "pre_workout", "snack", "dinner"];
-    case "evening":  return ["breakfast", "lunch", "snack", "pre_workout", "dinner"];
-    default:         return ["breakfast", "lunch", "pre_workout", "snack", "dinner"];
+    case "evening":   return ["breakfast", "lunch", "snack", "pre_workout", "dinner"];
+    default:          return ["breakfast", "lunch", "pre_workout", "snack", "dinner"];
   }
 }
 
@@ -179,12 +179,18 @@ function ExerciseCard({
         <div key={si} className="grid grid-cols-5 gap-1 items-center mb-2">
           <span className="text-center font-bold text-gray-800 text-sm">{si + 1}</span>
           <span className="text-center text-gray-400 text-xs">{exercise.target_reps}</span>
-          <div className="bg-gray-100 rounded-lg py-1.5 text-center cursor-pointer" onClick={() => onChangeKg(si, s.kg + 2.5)}>
-            <span className="text-gray-700 text-sm font-medium">{s.kg}</span>
-          </div>
-          <div className="bg-gray-100 rounded-lg py-1.5 text-center cursor-pointer" onClick={() => onChangeReps(si, s.reps + 1)}>
-            <span className="text-gray-700 text-sm font-medium">{s.reps}</span>
-          </div>
+          <input
+            type="number"
+            value={s.kg}
+            onChange={(e) => onChangeKg(si, parseFloat(e.target.value) || 0)}
+            className="bg-gray-100 rounded-lg py-1.5 text-center text-gray-700 text-sm font-medium w-full border-none outline-none"
+          />
+          <input
+            type="number"
+            value={s.reps}
+            onChange={(e) => onChangeReps(si, parseInt(e.target.value) || 1)}
+            className="bg-gray-100 rounded-lg py-1.5 text-center text-gray-700 text-sm font-medium w-full border-none outline-none"
+          />
           <button
             onClick={() => onToggleDone(si)}
             className={`w-7 h-7 mx-auto rounded-full border-2 flex items-center justify-center transition-colors ${s.done ? "border-green-500 bg-green-500" : "border-gray-300"}`}
@@ -288,7 +294,6 @@ function MealCard({
             <p key={i} className="text-gray-700 text-sm mb-3 leading-relaxed">{i + 1}. {step}</p>
           ))}
 
-          {/* Batch cook tip for lunch */}
           {meal.meal_type === "lunch" && (
             <div className="bg-blue-50 rounded-xl p-3 mt-2 mb-2">
               <p className="text-blue-700 text-xs font-medium">
@@ -297,7 +302,6 @@ function MealCard({
             </div>
           )}
 
-          {/* Reheat note for dinner */}
           {meal.meal_type === "dinner" && (
             <div className="bg-orange-50 rounded-xl p-3 mt-2 mb-2">
               <p className="text-orange-600 text-xs font-medium">
@@ -373,6 +377,8 @@ export default function Screen14() {
           .order("day_number", { ascending: true });
 
         if (wDays) {
+          const todayDate = new Date().toISOString().split("T")[0];
+
           const daysWithExercises: WorkoutDay[] = await Promise.all(
             wDays.map(async (day) => {
               if (day.is_rest_day) return { ...day, exercises: [] };
@@ -383,14 +389,28 @@ export default function Screen14() {
                 .eq("workout_day_id", day.id)
                 .order("order_index", { ascending: true });
 
+              const exIds = (exs || []).map((e) => e.id);
+
+              const { data: wLogs } = await supabase
+                .from("workout_logs")
+                .select("exercise_id, set_index, kg, reps, done")
+                .eq("user_id", user.id)
+                .eq("date", todayDate)
+                .in("exercise_id", exIds);
+
               const exercises: ExerciseRow[] = (exs || []).map((ex) => ({
                 ...ex,
                 demo_gif: exerciseGifs[ex.exercise_name] || "",
-                sets: Array(ex.target_sets).fill(null).map(() => ({
-                  kg: ex.target_kg || 0,
-                  reps: parseInt(ex.target_reps?.split("-")[0] || "10"),
-                  done: false,
-                })),
+                sets: Array(ex.target_sets).fill(null).map((_, si) => {
+                  const log = (wLogs || []).find(
+                    (l) => l.exercise_id === ex.id && l.set_index === si
+                  );
+                  return {
+                    kg: log?.kg ?? ex.target_kg ?? 0,
+                    reps: log?.reps ?? parseInt(ex.target_reps?.split("-")[0] || "10"),
+                    done: log?.done ?? false,
+                  };
+                }),
                 showVideo: false,
               }));
 
@@ -481,15 +501,39 @@ export default function Screen14() {
   const currentWorkoutDay = workoutDays.find((d) => d.day_name === DAYS_FULL[selectedDayIndex]);
   const currentMealDay = mealDays.find((d) => d.day_name === DAYS_FULL[selectedDayIndex]);
 
-  function updateExercise(exIdx: number, updater: (ex: ExerciseRow) => ExerciseRow) {
+  async function updateExercise(
+    exIdx: number,
+    updater: (ex: ExerciseRow) => ExerciseRow,
+    saveSetIndex?: number
+  ) {
+    let updatedEx: ExerciseRow | null = null;
+
     setWorkoutDays((prev) =>
       prev.map((day) => {
         if (day.day_name !== DAYS_FULL[selectedDayIndex]) return day;
         const exs = [...day.exercises];
         exs[exIdx] = updater({ ...exs[exIdx], sets: [...exs[exIdx].sets] });
+        updatedEx = exs[exIdx];
         return { ...day, exercises: exs };
       })
     );
+
+    if (saveSetIndex !== undefined && updatedEx) {
+      const ex = updatedEx as ExerciseRow;
+      const s = ex.sets[saveSetIndex];
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const todayDate = new Date().toISOString().split("T")[0];
+      await supabase.from("workout_logs").upsert({
+        user_id: user.id,
+        exercise_id: ex.id,
+        date: todayDate,
+        set_index: saveSetIndex,
+        kg: s.kg,
+        reps: s.reps,
+        done: s.done,
+      }, { onConflict: "user_id,exercise_id,date,set_index" });
+    }
   }
 
   async function toggleMealComplete(mealId: string, currentlyDone: boolean) {
@@ -509,18 +553,18 @@ export default function Screen14() {
 
     if (!currentlyDone) {
       const { error: upsertError } = await supabase
-  .from("meal_logs")
-  .upsert({
-    user_id: user.id,
-    meal_id: mealId,
-    date: todayDate,
-    completed: true,
-    saved_recipe: false,
-  }, { onConflict: "user_id,meal_id,date" });
+        .from("meal_logs")
+        .upsert({
+          user_id: user.id,
+          meal_id: mealId,
+          date: todayDate,
+          completed: true,
+          saved_recipe: false,
+        }, { onConflict: "user_id,meal_id,date" });
 
-if (upsertError) {
-  console.error("Meal log save failed:", upsertError.message);
-}
+      if (upsertError) {
+        console.error("Meal log save failed:", upsertError.message);
+      }
     } else {
       await supabase
         .from("meal_logs")
@@ -690,15 +734,15 @@ if (upsertError) {
                         onToggleDone={(si) => updateExercise(exIdx, (e) => ({
                           ...e,
                           sets: e.sets.map((s, i) => i === si ? { ...s, done: !s.done } : s),
-                        }))}
+                        }), si)}
                         onChangeKg={(si, v) => updateExercise(exIdx, (e) => ({
                           ...e,
                           sets: e.sets.map((s, i) => i === si ? { ...s, kg: Math.max(0, v) } : s),
-                        }))}
+                        }), si)}
                         onChangeReps={(si, v) => updateExercise(exIdx, (e) => ({
                           ...e,
                           sets: e.sets.map((s, i) => i === si ? { ...s, reps: Math.max(1, v) } : s),
-                        }))}
+                        }), si)}
                         onAddSet={() => updateExercise(exIdx, (e) => ({
                           ...e,
                           sets: [...e.sets, { kg: 0, reps: parseInt(e.target_reps?.split("-")[0] || "10"), done: false }],
