@@ -41,17 +41,55 @@ const PROTECTED_PATHS = [
   "/coach-glow",
 ];
 
+const ONBOARDING_PATHS = [
+  "/",
+  "/goal",
+  "/gender-age",
+  "/body-stats",
+  "/goal-weight",
+  "/activity",
+  "/weekly-pace",
+  "/meal-routine",
+  "/workout-time",
+  "/barriers",
+  "/plan-ready",
+  "/congrats",
+];
+
 function Router() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const [location, navigate] = useLocation();
 
   const isProtected = PROTECTED_PATHS.some((p) => location.startsWith(p));
+  const isOnboarding = ONBOARDING_PATHS.some((p) => location === p);
 
   useEffect(() => {
-    if (!loading && isProtected && !isAuthenticated) {
+    if (loading) return;
+
+    // Not logged in trying to access protected page → send to login
+    if (!isAuthenticated && isProtected) {
       navigate("/login");
+      return;
     }
-  }, [loading, isProtected, isAuthenticated, navigate]);
+
+    // Logged in and on onboarding or root → check onboarding status then redirect
+    if (isAuthenticated && isOnboarding) {
+      import("./lib/supabase")
+        .then(({ supabase }) =>
+          supabase
+            .from("profiles")
+            .select("onboarding_complete")
+            .eq("id", user!.id)
+            .single()
+        )
+        .then(({ data }) => {
+          if (data?.onboarding_complete) {
+            navigate("/dashboard");
+          }
+          // else: stay on onboarding, user hasn't finished yet
+        });
+    }
+  }, [loading, isAuthenticated, isProtected, isOnboarding, navigate, user]);
 
   if (loading) {
     return (
