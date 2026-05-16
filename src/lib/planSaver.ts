@@ -620,7 +620,7 @@ function buildPersonalizedMeal(
 
       const updatedIngredients = isLunch
         ? [
-            `${cookAllGrams}g ${meatType} — cook all, eat ${chickenGrams}g now, save rest for dinner`,
+            `${cookAllGrams}g chicken — cook all, eat ${chickenGrams}g now, save rest for dinner`,
             `${riceGrams * 2}g rice (cooked total) — eat ${riceGrams}g now, save ${riceGrams}g for dinner`,
             "1 tomato",
             "1 cucumber",
@@ -631,19 +631,19 @@ function buildPersonalizedMeal(
             "cumin powder",
           ]
         : [
-            `${chickenGrams}g ${meatType} — saved from lunch`,
+            `${chickenGrams}g chicken — saved from lunch`,
             `${riceGrams}g rice (cooked) — reheated from lunch`,
           ];
 
       const updatedSteps = isLunch
         ? [
-            `Cook all ${cookAllGrams}g ${meatType} with salt, cumin, lemon, 1 tsp oil`,
+            `Cook all ${cookAllGrams}g chicken with salt, cumin, lemon, 1 tsp oil`,
             "Cook rice",
-            `Eat ${chickenGrams}g ${meatType} now with ${riceGrams}g rice and salad`,
-            `Save ${chickenGrams}g ${meatType} and ${riceGrams}g rice for dinner`,
+            `Eat ${chickenGrams}g chicken now with ${riceGrams}g rice and salad`,
+            `Save ${chickenGrams}g chicken and ${riceGrams}g rice for dinner`,
           ]
         : [
-            `Reheat ${chickenGrams}g ${meatType} in pan for 4 minutes`,
+            `Reheat ${chickenGrams}g chicken in pan for 4 minutes`,
             "Reheat rice",
             "Squeeze fresh lemon if available",
             "Eat and recover",
@@ -655,7 +655,7 @@ function buildPersonalizedMeal(
         protein:  fatLossDay.lunch.protein,
         carbs:    fatLossDay.lunch.carbs,
         fat:      fatLossDay.lunch.fat,
-        serving_size: `${chickenGrams}g ${meatType} + ${riceGrams}g rice`,
+        serving_size: `${chickenGrams}g chicken + ${riceGrams}g rice`,
         ingredients: updatedIngredients,
         preparation_steps: updatedSteps,
       };
