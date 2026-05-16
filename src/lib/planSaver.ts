@@ -222,19 +222,26 @@ function calculateFatLossDay(
     fat: 17,
   };
 
+  // Real snack for fat loss — boiled egg + green tea
   const snack: MealMacros = {
-    calories: 5,
-    protein: 0,
-    carbs: 0,
-    fat: 0,
+    calories: 75,
+    protein: 6,
+    carbs: 1,
+    fat: 5,
   };
 
-  const proteinRemaining = Math.max(0, proteinTarget - breakfast.protein);
+  const proteinRemaining = Math.max(0, proteinTarget - breakfast.protein - snack.protein);
   const proteinPerMeal = proteinRemaining / 2;
 
   let chickenGrams = Math.round((proteinPerMeal / meatData.protein) * 100);
   chickenGrams = Math.round(chickenGrams / 5) * 5;
-  chickenGrams = Math.min(250, Math.max(100, chickenGrams));
+
+  // For beef — cap lower because beef is high fat
+  if (meatType === "beef") {
+    chickenGrams = Math.min(180, Math.max(80, chickenGrams));
+  } else {
+    chickenGrams = Math.min(250, Math.max(100, chickenGrams));
+  }
 
   const chickenCal = Math.round((chickenGrams * meatData.calories) / 100);
   const chickenProtein = Math.round((chickenGrams * meatData.protein) / 100);
@@ -244,12 +251,12 @@ function calculateFatLossDay(
   const usedCalories =
     breakfast.calories + snack.calories + (chickenCal + oilCal) * 2;
 
-  const remainingCalories = targetCalories - usedCalories;
+  const remainingCalories = Math.max(0, targetCalories - usedCalories);
   const riceCalPerMeal = remainingCalories / 2;
 
   let riceGrams = Math.round((riceCalPerMeal / FOOD.rice100g.calories) * 100);
   riceGrams = Math.round(riceGrams / 10) * 10;
-  riceGrams = Math.min(220, Math.max(40, riceGrams));
+  riceGrams = Math.min(200, Math.max(40, riceGrams));
 
   const riceCalActual = Math.round((riceGrams * FOOD.rice100g.calories) / 100);
   const riceProtein = Math.round((riceGrams * FOOD.rice100g.protein) / 100);
@@ -272,7 +279,6 @@ function calculateFatLossDay(
     riceGrams,
   };
 }
-
 // ─────────────────────────────────────────
 // ✅ MAINTAIN ENGINE — MACRO-DRIVEN
 // ─────────────────────────────────────────
@@ -595,15 +601,18 @@ function buildPersonalizedMeal(
         protein:  fatLossDay.snack.protein,
         carbs:    fatLossDay.snack.carbs,
         fat:      fatLossDay.snack.fat,
-        serving_size: "Black coffee or green tea — no sugar",
-        ingredients: ["1 cup black coffee or green tea — no sugar"],
+        serving_size: "1 boiled egg + green tea",
+        ingredients: [
+          "1 boiled egg",
+          "1 cup green tea — no sugar",
+        ],
         preparation_steps: [
-          "Make black coffee or green tea without sugar",
-          "Suppresses appetite between meals",
+          "Boil 1 egg",
+          "Make green tea without sugar",
+          "Keeps you full between meals",
         ],
       };
     }
-
     if (meal.meal_type === "lunch" || meal.meal_type === "dinner") {
       const { chickenGrams, riceGrams } = fatLossDay;
       const cookAllGrams = chickenGrams * 2;
